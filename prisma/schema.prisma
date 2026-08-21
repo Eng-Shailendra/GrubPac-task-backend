@@ -1,0 +1,229 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Get a free hosted Postgres database in seconds: `npx create-db`
+
+generator client {
+  provider = "prisma-client-js"
+  
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+
+// ============================================================
+// ENUMS
+// ============================================================
+
+enum Status {
+  todo
+  in_progress
+  review
+  done
+}
+
+enum Priority {
+  low
+  medium
+  high
+  urgent
+}
+
+enum OrgRole {
+  org_admin
+  member
+}
+
+// ============================================================
+// USERS
+// ============================================================
+
+
+model User {
+  id Int @id @default(autoincrement())
+  name String
+  email String @unique
+
+  passwordHash String
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  // Relationships
+  memberships    OrgMember[]
+  assignments    TaskAssignment[]
+  comments       Comment[]
+  refreshTokens  RefreshToken[]
+
+  // Frequently queried during authentication
+  @@index([email])
+}
+
+// ============================================================
+// ORGANIZATIONS
+// ============================================================
+
+model Organization {
+  id        Int      @id @default(autoincrement())
+  name      String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relationships
+  members  OrgMember[]
+  projects Project[]
+
+  @@index([name])
+}
+
+
+// ============================================================
+// ORGANIZATION MEMBERS
+// ============================================================
+
+model OrgMember {
+  id             Int      @id @default(autoincrement())
+  userId         Int
+  organizationId Int
+  role           OrgRole  @default(member)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  // Relationships
+  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  // A user can belong to an organization only once
+  @@unique([userId, organizationId])
+
+  // Frequently query members by organization
+  @@index([organizationId])
+
+  // Frequently query organizations for a user
+  @@index([userId])
+}
+
+
+// ============================================================
+// PROJECTS
+// ============================================================
+
+model Project {
+  id             Int       @id @default(autoincrement())
+  organizationId Int
+  name           String
+  description    String?
+  deletedAt      DateTime?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  // Relationships
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  tasks        Task[]
+
+  // Organization is used heavily for tenant-scoped queries
+  @@index([organizationId])
+
+  // Useful for soft-delete filtering
+  @@index([organizationId, deletedAt])
+}
+
+// ============================================================
+// TASKS
+// ============================================================
+
+model Task {
+  id          Int      @id @default(autoincrement())
+  projectId   Int
+  title       String
+  description String?
+  status      Status   @default(todo)
+  priority    Priority @default(medium)
+  dueDate     DateTime?
+  deletedAt   DateTime?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relationships
+  project     Project          @relation(fields: [projectId], references: [id], onDelete: Restrict)
+  assignments TaskAssignment[]
+  comments    Comment[]
+
+  // Project is the main scope for task queries
+  @@index([projectId])
+
+  // Required task filtering
+  @@index([status])
+  @@index([priority])
+  @@index([dueDate])
+
+  // Helps combined task filtering
+  @@index([projectId, status])
+  @@index([projectId, priority])
+
+  // Useful for soft-delete filtering
+  @@index([projectId, deletedAt])
+}
+
+
+// ============================================================
+// TASK ASSIGNMENTS
+// ============================================================
+
+model TaskAssignment {
+  id        Int      @id @default(autoincrement())
+  taskId    Int
+  userId    Int
+  createdAt DateTime @default(now())
+
+  // Relationships
+  task Task @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // Prevent duplicate assignment of the same user to the same task
+  @@unique([taskId, userId])
+
+  @@index([taskId])
+  @@index([userId])
+}
+
+// ============================================================
+// COMMENTS
+// ============================================================
+
+model Comment {
+  id        Int      @id @default(autoincrement())
+  taskId    Int
+  userId    Int
+  content   String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relationships
+  task Task @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Restrict)
+
+  @@index([taskId])
+  @@index([userId])
+}
+
+// ============================================================
+// REFRESH TOKENS
+// Required for /auth/refresh and /auth/logout
+// ============================================================
+
+model RefreshToken {
+  id        Int       @id @default(autoincrement())
+  tokenHash String    @unique
+  userId    Int
+  expiresAt DateTime
+  revokedAt DateTime?
+  createdAt DateTime  @default(now())
+
+  // Relationships
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([expiresAt])
+}
