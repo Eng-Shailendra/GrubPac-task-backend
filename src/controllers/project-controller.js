@@ -1,7 +1,53 @@
-import { getProjectById, deleteProject as deleteProjectService } from "../services/project-services.js";
+import { createProjectService, getProjectsService, getProjectByIdService, updateProjectService, deleteProjectService, getProjectDashboardService } from "../services/project-services.js";
+
+export const createProject = async (req, res, next) => {
+    try {
+        const { name, description } = req.body;
+
+        if (!name || typeof name !== "string") {
+            return res.status(400).json({
+                error: "Project name is required",
+                code: "INVALID_PROJECT_NAME",
+                details: {},
+            });
+        }
+
+        const project = await createProjectService(
+            req.user.organizationId,
+            name,
+            description
+        );
+
+        return res.status(201).json({
+            data: project,
+        });
+    } catch (error) {
+        next(error);
+    }
+};
+
+export const getProjects = async (req, res, next) => {
+    try {
+        const page = Math.max(Number(req.query.page) || 1, 1);
+        const limit = Math.min(
+            Math.max(Number(req.query.limit) || 20, 1),
+            100
+        );
+
+        const result = await getProjectsService(
+            req.user.organizationId,
+            page,
+            limit
+        );
+
+        return res.status(200).json(result);
+    } catch (error) {
+        next(error);
+    }
+};
 
 
-export const getProject = async (req, res) => {
+export const getProject = async (req, res, next) => {
     try {
         const projectId = Number(req.params.id);
 
@@ -11,7 +57,7 @@ export const getProject = async (req, res) => {
             });
         }
 
-        const project = await getProjectById(
+        const project = await getProjectByIdService(
             projectId,
             req.user.organizationId
         );
@@ -22,19 +68,37 @@ export const getProject = async (req, res) => {
 
     }
     catch (err) {
-        console.log(err)
-        if (err.statusCode) {
-            return res.status(err.statusCode).json({
-                message: err.message,
-            });
-        }
-        return res.status(500).json({
-            message: "Internal server error",
-        });
+        next(err);
     }
 }
 
-export const deleteProject = async (req, res) => {
+export const updateProject = async (req, res, next) => {
+    try {
+        const projectId = Number(req.params.id);
+
+        if (!Number.isInteger(projectId)) {
+            return res.status(400).json({
+                error: "Invalid project id",
+                code: "INVALID_PROJECT_ID",
+                details: {},
+            });
+        }
+
+        const project = await updateProjectService(
+            projectId,
+            req.user.organizationId,
+            req.body
+        );
+
+        return res.status(200).json({
+            data: project,
+        });
+    } catch (error) {
+        next(error);
+    }
+};
+
+export const deleteProject = async (req, res, next) => {
     try {
         const projectId = Number(req.params.id);
 
@@ -53,16 +117,33 @@ export const deleteProject = async (req, res) => {
             message: "Project deleted successfully",
         });
     } catch (error) {
-        console.error(error);
+        next(error)
+    }
+};
 
-        if (error.statusCode) {
-            return res.status(error.statusCode).json({
-                message: error.message,
+export const getProjectDashboard = async (
+    req,
+    res,
+    next
+) => {
+    try {
+        const projectId = Number(req.params.id);
+
+        if (!Number.isInteger(projectId)) {
+            return res.status(400).json({
+                error: "Invalid project id",
+                code: "INVALID_PROJECT_ID",
+                details: {},
             });
         }
 
-        return res.status(500).json({
-            message: "Internal server error",
-        });
+        const dashboard = await getProjectDashboardService(
+            projectId,
+            req.user.organizationId
+        );
+
+        return res.status(200).json(dashboard);
+    } catch (error) {
+        next(error);
     }
 };
