@@ -1,4 +1,5 @@
 import prisma from "../config/prisma.js";
+import { emailQueue } from "../jobs/queues/email-queue.js";
 import { AppError } from "../utils/app-error.js";
 
 export const createTaskService = async (
@@ -299,6 +300,8 @@ export const assignUserToTaskService = async (
     userId,
     organizationId
 ) => {
+
+
     // Get task and its organization through the project.
     const task = await prisma.task.findUnique({
         where: {
@@ -363,10 +366,45 @@ export const assignUserToTaskService = async (
         );
     }
 
-    return prisma.taskAssignment.create({
+
+
+    // --------------------------------------------------
+    // 4. Persist assignment
+    // --------------------------------------------------
+
+    const assignment = await prisma.taskAssignment.create({
         data: {
             taskId,
             userId,
+        },
+    });
+    try {
+        const job = await emailQueue.add("task-assigned", {
+            assignmentId: assignment.id,
+            taskId,
+            userId,
+        })
+        console.log(`📨 Email notification job created: ${job.id}`)
+    } catch (err) {
+        console.error("❌ Failed to enqueue email notification:", err.message)
+
+        // roll back if email is failed 
+        await prisma.taskAssignment.delete({
+            where: {
+                id: assignment.id,
+            },
+        });
+
+        throw new AppError(
+            "Failed to schedule notification",
+            "NOTIFICATION_QUEUE_FAILED",
+            503
+        );
+    }
+
+    return await prisma.taskAssignment.findUnique({
+        where: {
+            id: assignment.id,
         },
         include: {
             user: {
