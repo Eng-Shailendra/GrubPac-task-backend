@@ -7,7 +7,9 @@
     "dev": "nodemon server.js",
     "start": "node server.js",
     "worker": "node src/jobs/workers/email-worker.js",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage"
   },
   "keywords": [],
   "author": "",
@@ -24,6 +26,11 @@
     "ioredis": "^6.0.0",
     "jsonwebtoken": "^9.0.3",
     "pg": "^8.23.0",
-    "prisma": "^6.12.0"
+    "prisma": "^7.9.1"
+  },
+  "devDependencies": {
+    "@vitest/coverage-v8": "^4.1.11",
+    "supertest": "^7.2.2",
+    "vitest": "^4.1.11"
   }
 }

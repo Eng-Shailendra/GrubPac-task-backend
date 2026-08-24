@@ -57,7 +57,7 @@ export const login = async (req, res) => {
         const result = await loginService({ email, password })
 
 
-        res.status(201).json({
+        res.status(200).json({
             success: true,
             result,
         });
@@ -68,7 +68,6 @@ export const login = async (req, res) => {
                 message: err.message,
             });
         }
-
         return res.status(500).json({
             message: "Internal server error",
         });

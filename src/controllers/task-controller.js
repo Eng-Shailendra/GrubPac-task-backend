@@ -82,7 +82,7 @@ export const getTask = async (req, res, next) => {
             });
         }
 
-        const task = await getTaskById(
+        const task = await getTaskByIdService(
             taskId,
             req.user.organizationId
         );

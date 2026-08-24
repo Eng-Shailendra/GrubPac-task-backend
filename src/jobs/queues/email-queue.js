@@ -5,7 +5,7 @@ export const emailQueue = new Queue("email-notifications", {
     connection: redis,
 
     defaultJobOptions: {
-        attempts: 3,
+        attempts: 4,
 
         backoff: {
             type: "exponential",
